@@ -1,2 +1,2 @@
 # Graphics Element Manager
-GEM is an immediate mode GUI library.
+GEM is a **WIP** immediate mode GUI library.
