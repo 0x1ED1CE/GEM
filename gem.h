@@ -27,7 +27,7 @@ SOFTWARE.
 
 #define GEM_VERSION_MAJOR 0
 #define GEM_VERSION_MINOR 0
-#define GEM_VERSION_PATCH 3
+#define GEM_VERSION_PATCH 4
 
 #define GEM_TRUE  1
 #define GEM_FALSE 0
@@ -75,6 +75,8 @@ void gem_video_clip( // Must supply this function
 gem_vec3 gem_input_poll( // Must supply this function
 	gem_uint id
 );
+
+gem_real gem_scale();
 
 void gem_bound_push(
 	gem_uint clip,
@@ -141,7 +143,8 @@ void gem_text_draw(
 
 void gem_begin(
 	gem_real screen_width,
-	gem_real screen_height
+	gem_real screen_height,
+	gem_real scale
 );
 
 #endif
@@ -180,6 +183,12 @@ static gem_uint gem_clip_id;
 
 static gem_rect gem_current_rect;
 static gem_clip gem_current_clip;
+
+static gem_real ui_scale;
+
+gem_real gem_scale() {
+	return ui_scale;
+}
 
 void gem_bound_push(
 	gem_uint clip,
@@ -233,10 +242,10 @@ void gem_bound_push(
 		);
 
 		gem_video_clip(
-			gem_current_clip.ax,
-			gem_current_clip.ay,
-			gem_current_clip.bx-gem_current_clip.ax+1,
-			gem_current_clip.by-gem_current_clip.ay+1
+			gem_current_clip.ax*ui_scale,
+			gem_current_clip.ay*ui_scale,
+			(gem_current_clip.bx-gem_current_clip.ax+1)*ui_scale,
+			(gem_current_clip.by-gem_current_clip.ay+1)*ui_scale
 		);
 	}
 }
@@ -246,10 +255,10 @@ void gem_bound_drop() {
 		gem_current_clip = gem_clips[--gem_clip_id];
 
 		gem_video_clip(
-			gem_current_clip.ax,
-			gem_current_clip.ay,
-			gem_current_clip.bx-gem_current_clip.ax+1,
-			gem_current_clip.by-gem_current_clip.ay+1
+			gem_current_clip.ax*ui_scale,
+			gem_current_clip.ay*ui_scale,
+			(gem_current_clip.bx-gem_current_clip.ax+1)*ui_scale,
+			(gem_current_clip.by-gem_current_clip.ay+1)*ui_scale
 		);
 	}
 
@@ -309,9 +318,6 @@ gem_uint gem_bound_selected() {
 			gem_bound_test(
 				gem_points[i].on.x,
 				gem_points[i].on.y
-			) && gem_bound_test(
-				gem_points[i].current.x,
-				gem_points[i].current.y
 			)
 		) return i+1;
 	}
@@ -390,8 +396,12 @@ void gem_image_draw(
 	gem_video_draw(
 		texture,
 		color,
-		dx, dy, dw, dh,
-		sx, sy, sw, sh
+		dx*ui_scale,
+		dy*ui_scale,
+		dw*ui_scale,
+		dh*ui_scale,
+		sx, sy,
+		sw, sh
 	);
 }
 
@@ -464,10 +474,12 @@ void gem_text_draw(
 			gem_video_draw(
 				font.texture,
 				color,
-				ox,oy,
-				cw,ch,
-				sx,sy,
-				font.cw,font.ch
+				ox*ui_scale,
+				oy*ui_scale,
+				cw*ui_scale,
+				ch*ui_scale,
+				sx, sy,
+				font.cw, font.ch
 			);
 
 			ox += cw;
@@ -479,25 +491,31 @@ void gem_text_draw(
 
 void gem_begin(
 	gem_real screen_width,
-	gem_real screen_height
+	gem_real screen_height,
+	gem_real scale
 ) {
+	ui_scale = scale;
+
 	gem_rect_id = 0;
 	gem_clip_id = 0;
 
 	gem_current_rect.clip = GEM_FALSE;
 	gem_current_rect.ax   = 0;
 	gem_current_rect.ay   = 0;
-	gem_current_rect.bx   = screen_width-1;
-	gem_current_rect.by   = screen_height-1;
+	gem_current_rect.bx   = (screen_width-1)/ui_scale;
+	gem_current_rect.by   = (screen_height-1)/ui_scale;
 
 	gem_current_clip.ax = 0;
 	gem_current_clip.ay = 0;
-	gem_current_clip.bx = screen_width-1;
-	gem_current_clip.by = screen_height-1;
+	gem_current_clip.bx = (screen_width-1)/ui_scale;
+	gem_current_clip.by = (screen_height-1)/ui_scale;
 
 	for (gem_uint i=0; i<GEM_MAX_POINTS; i++) {
 		gem_points[i].previous = gem_points[i].current;
 		gem_points[i].current  = gem_input_poll(i+1);
+
+		gem_points[i].current.x /= ui_scale;
+		gem_points[i].current.y /= ui_scale;
 
 		if (
 			gem_points[i].previous.z==0 &&
